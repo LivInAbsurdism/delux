@@ -4,6 +4,8 @@ defmodule Delux.Backend do
   alias Delux.Pattern
   alias Delux.Program
 
+  require Logger
+
   @type state() :: %{
           red: File.io_device() | nil,
           green: File.io_device() | nil,
@@ -213,10 +215,15 @@ defmodule Delux.Backend do
   defp init_handle(_led_path, nil), do: {nil, 0}
 
   defp init_handle(led_path, name) do
-    File.write!("#{led_path}/#{name}/trigger", "pattern")
-    {max_brightness, _} = File.read!("#{led_path}/#{name}/max_brightness") |> Integer.parse()
-    handle = File.open!("#{led_path}/#{name}/pattern", [:write, :raw])
-
-    {handle, max_brightness}
+    try do
+      File.write!("#{led_path}/#{name}/trigger", "pattern")
+      {max_brightness, _} = File.read!("#{led_path}/#{name}/max_brightness") |> Integer.parse()
+      handle = File.open!("#{led_path}/#{name}/pattern", [:write, :raw])
+      {handle, max_brightness}
+    rescue
+      e in [File.Error] ->
+        Logger.error("Failed to access LED files for #{name}: #{inspect(e)}")
+        {:error, inspect(e)}
+    end
   end
 end
